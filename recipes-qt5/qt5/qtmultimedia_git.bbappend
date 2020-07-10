@@ -1,0 +1,2 @@
+#
+PACKAGECONFIG += "gstreamer alsa examples"

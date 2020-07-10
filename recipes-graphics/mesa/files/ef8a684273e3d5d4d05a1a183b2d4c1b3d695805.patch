@@ -1,0 +1,75 @@
+From ef8a684273e3d5d4d05a1a183b2d4c1b3d695805 Mon Sep 17 00:00:00 2001
+From: Gert Wollny <gert.wollny@collabora.com>
+Date: Thu, 16 Jan 2020 09:31:04 +0100
+Subject: [PATCH] etnaviv: be more agressive about padding when RS is used
+
+-  RS blits seem to need vertical sizes as a multiple of the tile size,
+   so set the according padding.
+-  Make sure the RS blit is aligned to tile size, this fixes misrendering
+   and some GPU hangs on GC2000
+-  etnaviv/rs: make blit width a multiple of 64 when MSAA is involved, this
+   fixes GPU hangs for RS blits with certain blit sizes on GC2000 and GC880.
+
+v2: Squash three related patches into one (Jonathan Marek)
+
+Signed-off-by: Gert Wollny <gert.wollny@collabora.com>
+---
+ src/gallium/drivers/etnaviv/etnaviv_resource.c  | 3 ++-
+ src/gallium/drivers/etnaviv/etnaviv_rs.c        | 4 ++--
+ src/gallium/drivers/etnaviv/etnaviv_translate.h | 4 ++--
+ 3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_resource.c b/src/gallium/drivers/etnaviv/etnaviv_resource.c
+index ecc1a9136e9..cb772019603 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_resource.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_resource.c
+@@ -198,7 +198,8 @@ static bool is_rs_align(struct etna_screen *screen,
+ {
+    return screen->specs.use_blt ? false : (
+       VIV_FEATURE(screen, chipMinorFeatures1, TEXTURE_HALIGN) ||
+-      !etna_resource_sampler_only(tmpl));
++      !etna_resource_sampler_only(tmpl) ||
++      tmpl->nr_samples > 1);
+ }
+ 
+ /* Create a new resource object, using the given template info */
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_rs.c b/src/gallium/drivers/etnaviv/etnaviv_rs.c
+index 21e49d51f63..f9f26da99f4 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_rs.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_rs.c
+@@ -675,8 +675,8 @@ etna_try_rs_blit(struct pipe_context *pctx,
+     * Note: the RS width/height are converted to source samples here. */
+    unsigned int width = blit_info->src.box.width * msaa_xscale;
+    unsigned int height = blit_info->src.box.height * msaa_yscale;
+-   unsigned int w_align = ETNA_RS_WIDTH_MASK + 1;
+-   unsigned int h_align = ETNA_RS_HEIGHT_MASK + 1;
++   unsigned int w_align = src->base.nr_samples > 1 ? 64 : ETNA_RS_WIDTH_MASK + 1;
++   unsigned int h_align = src->base.nr_samples > 1 ? 16 : ETNA_RS_HEIGHT_MASK + 1;
+ 
+    if (width & (w_align - 1) && width >= src_lev->width * msaa_xscale && width >= dst_lev->width)
+       width = align(width, w_align);
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_translate.h b/src/gallium/drivers/etnaviv/etnaviv_translate.h
+index e0811545e74..33af8131b3d 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_translate.h
++++ b/src/gallium/drivers/etnaviv/etnaviv_translate.h
+@@ -394,7 +394,7 @@ etna_layout_multiple(unsigned layout, unsigned pixel_pipes, bool rs_align,
+       break;
+    case ETNA_LAYOUT_TILED:
+       *paddingX = rs_align ? 16 : 4;
+-      *paddingY = 4;
++      *paddingY = rs_align ? 16 : 4;
+       *halign = rs_align ? TEXTURE_HALIGN_SIXTEEN : TEXTURE_HALIGN_FOUR;
+       break;
+    case ETNA_LAYOUT_SUPER_TILED:
+@@ -404,7 +404,7 @@ etna_layout_multiple(unsigned layout, unsigned pixel_pipes, bool rs_align,
+       break;
+    case ETNA_LAYOUT_MULTI_TILED:
+       *paddingX = 16;
+-      *paddingY = 4 * pixel_pipes;
++      *paddingY = (rs_align ? 16 : 4) * pixel_pipes;
+       *halign = TEXTURE_HALIGN_SPLIT_TILED;
+       break;
+    case ETNA_LAYOUT_MULTI_SUPERTILED:
+-- 
+GitLab
+

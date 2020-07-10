@@ -1,0 +1,36 @@
+From 8b300b5a23e17ba1912ad7d43aa8b826730b4265 Mon Sep 17 00:00:00 2001
+From: Gert Wollny <gert.wollny@collabora.com>
+Date: Fri, 8 Nov 2019 10:00:40 +0100
+Subject: [PATCH] etnaviv: Set blit box sizes based on real sizes
+
+The padded sizes are based on the real sizes multiplied with the samples
+per direction. Later, in etna_try_rs_blit, the box sizes are multiplied by
+the number of directional samples, so that the assertions fails.
+
+Since the box size later converted to source samples anyway, I assume that
+the box size should be the logical size of the region.
+
+Signed-off-by: Gert Wollny <gert.wollny@collabora.com>
+---
+ src/gallium/drivers/etnaviv/etnaviv_clear_blit.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_clear_blit.c b/src/gallium/drivers/etnaviv/etnaviv_clear_blit.c
+index 51d16aa19f7..133390f74d1 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_clear_blit.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_clear_blit.c
+@@ -173,9 +173,9 @@ etna_copy_resource(struct pipe_context *pctx, struct pipe_resource *dst,
+    for (int level = first_level; level <= last_level; level++) {
+       blit.src.level = blit.dst.level = level;
+       blit.src.box.width = blit.dst.box.width =
+-         MIN2(src_priv->levels[level].padded_width, dst_priv->levels[level].padded_width);
++         MIN2(src_priv->levels[level].width, dst_priv->levels[level].width);
+       blit.src.box.height = blit.dst.box.height =
+-         MIN2(src_priv->levels[level].padded_height, dst_priv->levels[level].padded_height);
++         MIN2(src_priv->levels[level].height, dst_priv->levels[level].height);
+       unsigned depth = MIN2(src_priv->levels[level].depth, dst_priv->levels[level].depth);
+       if (dst->array_size > 1) {
+          assert(depth == 1); /* no array of 3d texture */
+-- 
+GitLab
+

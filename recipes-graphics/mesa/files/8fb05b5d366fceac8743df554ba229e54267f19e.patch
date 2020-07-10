@@ -1,0 +1,42 @@
+From 8fb05b5d366fceac8743df554ba229e54267f19e Mon Sep 17 00:00:00 2001
+From: Gert Wollny <gert.wollny@collabora.com>
+Date: Fri, 10 Jan 2020 16:34:14 +0100
+Subject: [PATCH] etnaviv: create MSAA surfaces with PE compatible tiling
+
+MSAA rurfaces are always used for rendering, and only as blit sources,
+so the need to be allocated with PE compatible tiling (Suggested by
+Jonathan Marek)
+
+Signed-off-by: Gert Wollny <gert.wollny@collabora.com>
+---
+ src/gallium/drivers/etnaviv/etnaviv_resource.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_resource.c b/src/gallium/drivers/etnaviv/etnaviv_resource.c
+index 03b3ef8719e..ecc1a9136e9 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_resource.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_resource.c
+@@ -345,13 +345,14 @@ etna_resource_create(struct pipe_screen *pscreen,
+     * This matters because on some GPUs (GC2000) there is no tiling that is
+     * compatible with both TE and PE.
+     *
+-    * We expect that depth/stencil buffers will always be used by PE (rendering),
+-    * and any other non-scanout resource will be used as a texture at some point,
+-    * So allocate a render-compatible base buffer for scanout/depthstencil buffers,
+-    * and a texture-compatible base buffer in other cases
+-    *
++    * We expect that depth/stencil buffers and MSAA resources will always be used
++    * by PE (rendering),and any other non-scanout resource will be used as a
++    * texture at some point, So allocate a render-compatible base buffer for
++    * scanout/depthstencil buffers,and a texture-compatible base buffer in
++    * other cases
+     */
+-   if (templat->bind & (PIPE_BIND_SCANOUT | PIPE_BIND_DEPTH_STENCIL)) {
++   if (templat->bind & (PIPE_BIND_SCANOUT | PIPE_BIND_DEPTH_STENCIL) ||
++       templat->nr_samples > 1) {
+       if (screen->specs.pixel_pipes > 1 && !screen->specs.single_buffer)
+          layout |= ETNA_LAYOUT_BIT_MULTI;
+       if (screen->specs.can_supertile)
+-- 
+GitLab
+

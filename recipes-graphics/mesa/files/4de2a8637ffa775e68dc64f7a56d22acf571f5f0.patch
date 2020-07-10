@@ -1,0 +1,48 @@
+From 4de2a8637ffa775e68dc64f7a56d22acf571f5f0 Mon Sep 17 00:00:00 2001
+From: Christian Gmeiner <christian.gmeiner@gmail.com>
+Date: Sun, 17 Nov 2019 19:49:17 +0100
+Subject: [PATCH] etnaviv: fix rendering to incompatible resource case
+
+Currently we end in a situation where we render to a
+compatible resource but never blit back the rendering
+result to the incompatible resource. The result is a
+black screen - in case of kmscube.
+
+Signed-off-by: Christian Gmeiner <christian.gmeiner@gmail.com>
+---
+ src/gallium/drivers/etnaviv/etnaviv_state.c | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_state.c b/src/gallium/drivers/etnaviv/etnaviv_state.c
+index e3c2345cb32..a7bf02b5421 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_state.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_state.c
+@@ -110,15 +110,18 @@ etna_set_constant_buffer(struct pipe_context *pctx,
+ static void
+ etna_update_render_resource(struct pipe_context *pctx, struct etna_resource *base)
+ {
+-   struct etna_resource *to = base, *from = base;
++   struct etna_resource *to = base, *from;
+ 
+-   if (base->texture && etna_resource_newer(etna_resource(base->texture), base))
+-      from = etna_resource(base->texture);
+-
+-   if (base->render)
+-      to = etna_resource(base->render);
++   from = etna_resource(base->texture);
++   if (base->texture && etna_resource_newer(from, to)) {
++      assert(to != from);
++      etna_copy_resource(pctx, &to->base, &from->base, 0, base->base.last_level);
++      to->seqno = from->seqno;
++   }
+ 
+-   if ((to != from) && etna_resource_older(to, from)) {
++   from = etna_resource(base->render);
++   if (base->render && etna_resource_older(to, from)) {
++      assert(to != from);
+       etna_copy_resource(pctx, &to->base, &from->base, 0, base->base.last_level);
+       to->seqno = from->seqno;
+    }
+-- 
+GitLab
+

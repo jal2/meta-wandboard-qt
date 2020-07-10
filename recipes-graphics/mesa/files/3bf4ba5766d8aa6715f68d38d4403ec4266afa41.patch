@@ -1,0 +1,34 @@
+From 3bf4ba5766d8aa6715f68d38d4403ec4266afa41 Mon Sep 17 00:00:00 2001
+From: Christian Gmeiner <christian.gmeiner@gmail.com>
+Date: Sun, 17 Nov 2019 20:37:40 +0100
+Subject: [PATCH] etnaviv: rs: color resolve works
+
+Fixes kmscube with MSAA.
+
+Signed-off-by: Christian Gmeiner <christian.gmeiner@gmail.com>
+---
+ src/gallium/drivers/etnaviv/etnaviv_rs.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/src/gallium/drivers/etnaviv/etnaviv_rs.c b/src/gallium/drivers/etnaviv/etnaviv_rs.c
+index e3f7fbd8d3b..21e49d51f63 100644
+--- a/src/gallium/drivers/etnaviv/etnaviv_rs.c
++++ b/src/gallium/drivers/etnaviv/etnaviv_rs.c
+@@ -819,14 +819,6 @@ etna_blit_rs(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
+    struct etna_context *ctx = etna_context(pctx);
+    struct pipe_blit_info info = *blit_info;
+ 
+-   if (info.src.resource->nr_samples > 1 &&
+-       info.dst.resource->nr_samples <= 1 &&
+-       !util_format_is_depth_or_stencil(info.src.resource->format) &&
+-       !util_format_is_pure_integer(info.src.resource->format)) {
+-      DBG("color resolve unimplemented");
+-      return;
+-   }
+-
+    if (etna_try_rs_blit(pctx, blit_info))
+       return;
+ 
+-- 
+GitLab
+
